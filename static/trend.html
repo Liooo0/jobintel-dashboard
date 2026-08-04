@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>求职数据仪表盘 · 趋势</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header>
+  <h1>📊 求职数据仪表盘</h1>
+  <a href="/">总览</a>
+  <a href="/trend" class="active">趋势</a>
+  <a href="/detail">明细</a>
+</header>
+<main>
+  <div class="panel">
+    <h2>按天投递量（最近 <span id="daysLabel">30</span> 天）</h2>
+    <div class="filters" id="dayBtns">
+      <button onclick="setDays(7)">7天</button>
+      <button onclick="setDays(30)">30天</button>
+      <button onclick="setDays(90)">90天</button>
+    </div>
+    <div id="trendChart"></div>
+  </div>
+</main>
+<script src="/static/js/charts.js"></script>
+<script>
+let days = 30;
+async function load() {
+  const d = await (await fetch(`/api/trend?days=${days}`)).json();
+  document.getElementById("daysLabel").textContent = days;
+  line(document.getElementById("trendChart"), d.days.map(x => x.d.slice(5)), [
+    { name: "boss", values: d.days.map(x => x.boss), color: "#4f8cff" },
+    { name: "51job", values: d.days.map(x => x.j51), color: "#8fd460" },
+    { name: "已投递", values: d.days.map(x => x.applied), color: "#ffb020" },
+  ]);
+}
+function setDays(n) { days = n; load(); }
+load();
+</script>
+</body>
+</html>

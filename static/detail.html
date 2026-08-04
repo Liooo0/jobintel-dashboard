@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>求职数据仪表盘 · 明细</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header>
+  <h1>📊 求职数据仪表盘</h1>
+  <a href="/">总览</a>
+  <a href="/trend">趋势</a>
+  <a href="/detail" class="active">明细</a>
+</header>
+<main>
+  <div class="filters">
+    <select id="fCity"><option value="">全部城市</option></select>
+    <select id="fSource">
+      <option value="">全部来源</option><option>boss</option><option>51job</option>
+    </select>
+    <select id="fStatus">
+      <option value="">全部状态</option><option value="applied">已投递</option>
+      <option value="skipped">跳过</option><option value="failed">失败</option>
+    </select>
+    <input id="fKw" placeholder="搜索岗位/关键词/公司" style="min-width:200px">
+    <button onclick="go(1)">筛选</button>
+  </div>
+  <div class="panel">
+    <table>
+      <thead><tr>
+        <th>时间</th><th>来源</th><th>状态</th><th>城市</th><th>公司</th>
+        <th>岗位</th><th>薪资</th><th>分</th><th>关键词</th><th>原因</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty" style="display:none">没有匹配记录</div>
+    <div class="pager" id="pager"></div>
+  </div>
+</main>
+<script>
+let page = 1, pageSize = 50;
+
+async function loadCities() {
+  const d = await (await fetch("/api/overview")).json();
+  const sel = document.getElementById("fCity");
+  d.cities.forEach(c => {
+    const o = document.createElement("option");
+    o.value = o.textContent = c.city;
+    sel.appendChild(o);
+  });
+}
+
+async function go(p) {
+  page = p;
+  const city = document.getElementById("fCity").value;
+  const source = document.getElementById("fSource").value;
+  const status = document.getElementById("fStatus").value;
+  const kw = document.getElementById("fKw").value.trim();
+  const q = new URLSearchParams({ page, page_size: pageSize, city, source, status, kw });
+  const d = await (await fetch(`/api/detail?${q}`)).json();
+  const tbody = document.getElementById("rows");
+  tbody.innerHTML = "";
+  document.getElementById("empty").style.display = d.items.length ? "none" : "block";
+  d.items.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${(r.ts || "").slice(0, 16).replace("T", " ")}</td>
+      <td>${r.source}</td>
+      <td><span class="badge ${r.status}">${r.status}</span></td>
+      <td>${r.city || ""}</td>
+      <td class="wrap">${r.company || ""}</td>
+      <td class="wrap">${r.job || ""}</td>
+      <td>${r.salary_raw || ""}</td>
+      <td>${r.score != null ? r.score : ""}</td>
+      <td class="wrap">${r.keyword || ""}</td>
+      <td class="wrap">${r.reason || ""}</td>`;
+    tbody.appendChild(tr);
+  });
+  const pages = Math.max(1, Math.ceil(d.total / pageSize));
+  document.getElementById("pager").innerHTML = `
+    <button onclick="go(${page - 1})" ${page <= 1 ? "disabled" : ""}>上一页</button>
+    <span>第 ${page} / ${pages} 页 · 共 ${d.total.toLocaleString()} 条</span>
+    <button onclick="go(${page + 1})" ${page >= pages ? "disabled" : ""}>下一页</button>`;
+}
+
+loadCities().then(() => go(1));
+</script>
+</body>
+</html>

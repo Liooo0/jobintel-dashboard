@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>求职数据仪表盘 · 总览</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header>
+  <h1>📊 求职数据仪表盘</h1>
+  <a href="/" class="active">总览</a>
+  <a href="/trend">趋势</a>
+  <a href="/detail">明细</a>
+</header>
+<main>
+  <div class="kpis" id="kpis"></div>
+  <div class="grid2">
+    <div class="panel"><h2>状态分布</h2><div class="donut-wrap" id="statusChart"></div></div>
+    <div class="panel"><h2>来源分布</h2><div id="sourceBars"></div></div>
+  </div>
+  <div class="grid3" style="margin-top:14px">
+    <div class="panel"><h2>城市 Top10</h2><div id="cityBars"></div></div>
+    <div class="panel"><h2>投递关键词 Top10</h2><div id="kwBars"></div></div>
+    <div class="panel"><h2>薪资分布（月薪）</h2><div id="salaryBars"></div></div>
+  </div>
+  <div class="panel" style="margin-top:14px"><h2>近 7 天已投递</h2><div id="weekLine"></div></div>
+</main>
+<script src="/static/js/charts.js"></script>
+<script>
+async function load() {
+  const d = await (await fetch("/api/overview")).json();
+  const st = d.status.find(s => s.status === "applied");
+  const sk = d.status.find(s => s.status === "skipped");
+  const fa = d.status.find(s => s.status === "failed");
+  const pct = d.total ? ((st ? st.c : 0) / d.total * 100).toFixed(1) : "0";
+  document.getElementById("kpis").innerHTML = `
+    <div class="kpi"><div class="num">${d.total.toLocaleString()}</div><div class="lab">总投递</div></div>
+    <div class="kpi"><div class="num ok">${(st ? st.c : 0).toLocaleString()}</div><div class="lab">已投递（${pct}%）</div></div>
+    <div class="kpi"><div class="num warn">${(sk ? sk.c : 0).toLocaleString()}</div><div class="lab">跳过</div></div>
+    <div class="kpi"><div class="num bad">${(fa ? fa.c : 0)}</div><div class="lab">失败</div></div>`;
+  donut(document.getElementById("statusChart"), d.status.map(s => ({ label: s.status, value: s.c })));
+  bars(document.getElementById("sourceBars"), d.sources.map(s => ({ label: s.source, value: s.c })));
+  bars(document.getElementById("cityBars"), d.cities.map(c => ({ label: c.city, value: c.c })));
+  bars(document.getElementById("kwBars"), d.keywords.map(k => ({ label: k.keyword, value: k.c })), "#a06bff");
+  bars(document.getElementById("salaryBars"), d.salary.labels.map((lb, i) => ({ label: lb, value: d.salary.bins[i] })), "#ffb020");
+  line(document.getElementById("weekLine"), d.week.map(w => w.d.slice(5)), [{ name: "已投递", values: d.week.map(w => w.c) }]);
+}
+load();
+</script>
+</body>
+</html>
