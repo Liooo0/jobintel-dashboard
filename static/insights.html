@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>求职数据仪表盘 · 决策洞察</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header>
+  <h1>📊 求职数据仪表盘</h1>
+  <a href="/">总览</a>
+  <a href="/insights" class="active">洞察</a>
+  <a href="/trend">趋势</a>
+  <a href="/detail">明细</a>
+</header>
+<main>
+  <div class="kpis" id="kpis"></div>
+  <div class="grid2">
+    <div class="panel"><h2>✂️ 跳过归因 — 什么规则砍掉了最多机会</h2><div id="skipBars"></div></div>
+    <div class="panel"><h2>🎯 投递质量分布（JD 匹配分）</h2><div class="donut-wrap" id="fitDonut"></div>
+      <p class="hint">≥70 高匹配 / 40-69 中等 / &lt;40 低匹配。低分投得多 = 在凑数，规则值得收紧。</p></div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="panel"><h2>🏙 高分机会在哪 — 城市（投递量 TOP6 × 平均匹配分）</h2>
+      <table class="insight-tbl"><thead><tr><th>城市</th><th>投递量</th><th>平均匹配分</th></tr></thead><tbody id="cityRows"></tbody></table></div>
+    <div class="panel"><h2>🔑 高分机会在哪 — 岗位关键词（TOP6 × 平均匹配分）</h2>
+      <table class="insight-tbl"><thead><tr><th>关键词</th><th>投递量</th><th>平均匹配分</th></tr></thead><tbody id="kwRows"></tbody></table></div>
+  </div>
+  <div class="panel" style="margin-top:14px"><h2>📈 近 30 天每日平均匹配分</h2><div id="qualityLine"></div></div>
+</main>
+<script src="/static/js/charts.js"></script>
+<script>
+async function load() {
+  const d = await (await fetch("/api/insights")).json();
+  const t = d.fit.applied_total || 1;
+  document.getElementById("kpis").innerHTML = `
+    <div class="kpi"><div class="num">${d.fit.applied_total.toLocaleString()}</div><div class="lab">已投递</div></div>
+    <div class="kpi"><div class="num ok">${d.fit.high.toLocaleString()}</div><div class="lab">高匹配(≥70) ${(d.fit.high / t * 100).toFixed(0)}%</div></div>
+    <div class="kpi"><div class="num warn">${d.fit.low.toLocaleString()}</div><div class="lab">低匹配(&lt;40) ${(d.fit.low / t * 100).toFixed(0)}%</div></div>
+    <div class="kpi"><div class="num">${d.median_salary_k != null ? d.median_salary_k + "K" : "—"}</div><div class="lab">投递薪资中位</div></div>`;
+  bars(document.getElementById("skipBars"),
+    d.skip_reasons.map(r => ({ label: r.reason, value: r.c })), "#ff6b6b");
+  donut(document.getElementById("fitDonut"), [
+    { label: "高匹配(≥70)", value: d.fit.high },
+    { label: "中等(40-69)", value: d.fit.mid },
+    { label: "低匹配(<40)", value: d.fit.low },
+  ]);
+  document.getElementById("cityRows").innerHTML = d.top_cities.map(c => `
+    <tr><td>${c.city}</td><td>${c.c.toLocaleString()}</td>
+    <td class="${c.avg_score >= 60 ? 'score-hi' : c.avg_score >= 50 ? 'score-mid' : 'score-lo'}">${c.avg_score}</td></tr>`).join("");
+  document.getElementById("kwRows").innerHTML = d.top_keywords.map(k => `
+    <tr><td>${k.keyword}</td><td>${k.c.toLocaleString()}</td>
+    <td class="${k.avg_score >= 60 ? 'score-hi' : k.avg_score >= 50 ? 'score-mid' : 'score-lo'}">${k.avg_score}</td></tr>`).join("");
+  line(document.getElementById("qualityLine"),
+    d.quality_trend.map(q => q.d.slice(5)),
+    [
+      { name: "平均匹配分", values: d.quality_trend.map(q => q.avg_score || 0), color: "#4f8cff" },
+      { name: "投递量(×10)", values: d.quality_trend.map(q => (q.c || 0) * 10), color: "#ffb020" },
+    ]);
+}
+load();
+</script>
+</body>
+</html>

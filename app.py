@@ -93,6 +93,62 @@ def api_trend(days: int = 30) -> dict:
     return {"days": list(reversed(rows))}
 
 
+@app.get("/api/insights")
+def api_insights() -> dict:
+    """决策洞察：从投递记录里回答「哪些值得投、哪些被规则误伤、投的质量如何」。
+
+    全部只读查询。数据源 applications 表的 status 仅 skipped/applied/failed，
+    因此这里是投递决策层(选岗质量)而非结果漏斗层(回复率需接 job-hunter 的失败追踪库)。
+    """
+    # 跳过归因：什么规则砍掉了最多投递(排除词 / 缺关键词 / 公司名过滤…)
+    skip = query(
+        """SELECT reason, COUNT(*) c FROM applications
+           WHERE reason IS NOT NULL AND reason != '' AND status = 'skipped'
+           GROUP BY reason ORDER BY c DESC LIMIT 12"""
+    )
+    # 投递质量：applied 的匹配分三段(排除词归零前按 JD 匹配计分)
+    fit = query(
+        """SELECT
+             SUM(CASE WHEN score >= 70 THEN 1 ELSE 0 END) AS high,
+             SUM(CASE WHEN score >= 40 AND score < 70 THEN 1 ELSE 0 END) AS mid,
+             SUM(CASE WHEN score < 40 OR score IS NULL THEN 1 ELSE 0 END) AS low,
+             ROUND(AVG(score), 1) AS avg_score
+           FROM applications WHERE status = 'applied'"""
+    )[0]
+    applied_total = query("SELECT COUNT(*) c FROM applications WHERE status='applied'")[0]["c"]
+    # 投递目标薪资中位数(月度 K)
+    salary_rows = query(
+        """SELECT salary_min_k AS mk FROM applications
+           WHERE status = 'applied' AND salary_min_k IS NOT NULL AND salary_min_k > 0
+           ORDER BY salary_min_k"""
+    )
+    median_k = salary_rows[len(salary_rows) // 2]["mk"] if salary_rows else None
+    # 高分机会在哪：城市 × 平均匹配分(投递量 top6)
+    cities = query(
+        """SELECT city, COUNT(*) c, ROUND(AVG(score), 1) AS avg_score
+           FROM applications WHERE status = 'applied' AND city != ''
+           GROUP BY city ORDER BY c DESC LIMIT 6"""
+    )
+    keywords = query(
+        """SELECT keyword, COUNT(*) c, ROUND(AVG(score), 1) AS avg_score
+           FROM applications WHERE status = 'applied' AND keyword != ''
+           GROUP BY keyword ORDER BY c DESC LIMIT 6"""
+    )
+    # 30 天质量趋势：每天平均匹配分
+    quality = query(
+        """SELECT substr(ts, 1, 10) d, COUNT(*) c, ROUND(AVG(score), 1) AS avg_score
+           FROM applications
+           WHERE status = 'applied' AND ts != '' AND ts >= datetime('now', '-30 days')
+           GROUP BY d ORDER BY d"""
+    )
+    return {
+        "skip_reasons": skip,
+        "fit": {**fit, "applied_total": applied_total},
+        "median_salary_k": median_k,
+        "top_cities": cities,
+        "top_keywords": keywords,
+        "quality_trend": quality,
+    }
 @app.get("/api/detail")
 def api_detail(
     page: int = 1, page_size: int = 50,
@@ -136,6 +192,11 @@ def page_index() -> FileResponse:
 @app.get("/trend", include_in_schema=False)
 def page_trend() -> FileResponse:
     return FileResponse(STATIC_DIR / "trend.html")
+
+
+@app.get("/insights", include_in_schema=False)
+def page_insights() -> FileResponse:
+    return FileResponse(STATIC_DIR / "insights.html")
 
 
 @app.get("/detail", include_in_schema=False)
