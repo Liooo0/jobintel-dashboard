@@ -1,6 +1,22 @@
 # 📊 求职数据仪表盘
 
-一个本地运行的 Web 应用：把自动化投递产生的 **3 万+ 条求职记录**变成可视化仪表盘——总览、趋势、明细筛选。用于看清"投了什么、投到哪、结果如何"，用数据代替感觉做求职决策。
+一个本地运行的 Web 应用：把自动化投递产生的 **4 万+ 条求职记录**变成可视化仪表盘——总览、趋势、明细筛选。用于看清"投了什么、投到哪、结果如何"，用数据代替感觉做求职决策。
+
+<p align="center">
+  <b>🌐 AI 智能求职全链路套件 (Job Intelligence Suite)</b><br>
+  <a href="https://github.com/Liooo0/boss-zhipin-helper">🧩 浏览器扩展 (JD即时提炼/AI回复)</a>
+  &nbsp;•&nbsp;
+  <a href="https://github.com/Liooo0/job-hunter">🎯 Job Hunter (规则引擎/精准拟真投递)</a>
+  &nbsp;•&nbsp;
+  <b>📊 决策仪表盘 (3万+投递数据复盘)</b>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Suite-Job_Intelligence-6366f1?style=flat-square" alt="Suite">
+  <img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/Charts-Pure_SVG_Zero--Dep-blue?style=flat-square" alt="Zero-Dep SVG">
+  <img src="https://img.shields.io/badge/Database-SQLite_(Readonly)-003B57?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite">
+</p>
 
 > 深色主题 · 零构建原生前端 · FastAPI + SQLite（只读）· 自写 SVG 图表（零依赖）
 
@@ -20,7 +36,11 @@
 
 ## 数据源
 
-只读 `jobintel/data/jobintel.db`（由自动化投递脚本写入，仪表盘永不改数据）。
+只读 `jobintel/data/jobintel.db`（由自动化投递脚本写入，仪表盘永不改数据）。数据同步以投递主库 `~/projects/job-hunter/ab_experiment.db` 为准（JSON 日志 2026-08 起停更），更新数据：
+
+```bash
+cd ~/projects/jobintel && python3 src/sync_from_main_db.py
+```
 
 ```sql
 applications(id, source, status, city, company, job,
