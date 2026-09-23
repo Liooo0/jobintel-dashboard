@@ -49,3 +49,12 @@ td.wrap { white-space: normal; max-width: 260px; }
 .pager button { background: var(--panel); border: 1px solid var(--border); color: var(--text); padding: 5px 12px; border-radius: 6px; cursor: pointer; }
 .empty { color: var(--muted); text-align: center; padding: 40px 0; }
 @media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+
+/* 决策洞察 */
+.hint { color: var(--faint, #8b93a7); font-size: 12px; margin-top: 8px; }
+.insight-tbl { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.insight-tbl th, .insight-tbl td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line, #2a3142); font-size: 13px; }
+.insight-tbl th { color: var(--faint, #8b93a7); font-weight: 500; }
+.score-hi { color: #34c98f; font-weight: 700; }
+.score-mid { color: #ffb020; font-weight: 700; }
+.score-lo { color: #ff6b6b; font-weight: 700; }
