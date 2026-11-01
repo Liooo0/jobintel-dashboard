@@ -1,24 +1,91 @@
-"""求职数据仪表盘：FastAPI 只读查询 jobintel.db（31k+ 条真实投递记录）。
+"""求职数据仪表盘：FastAPI 只读查询 jobintel.db。
 
 API:
 - GET /api/overview   总览：总量/状态/来源/城市/关键词/薪资分布/近7天投递
 - GET /api/trend      趋势：按天投递量（来源拆分 + applied 数）
 - GET /api/detail     明细：分页 + 城市/来源/状态/关键词筛选
+- GET /api/healthz    健康检查：ok + 实际使用的 DB 路径 + 数据来源（env/local/demo）
+
+数据库解析顺序
+--------------
+1. 环境变量 ``JOBINTEL_DB`` 指向的文件（显式指定；文件不存在直接报错，不静默降级）；
+2. 本机真实库 ``../jobintel/data/jobintel.db``（开发者机器上沿用旧路径，source=local）；
+3. 仓库内置合成 demo 库 ``demo/jobintel_demo.db``（外部 clone 没有第 2 条路径，自动落到这里）；
+4. 都没有：抛出带下一步指引的 RuntimeError。
+生成 demo 数据：``python3 scripts/make_demo_db.py``。
 """
 from __future__ import annotations
 
 import os
 import sqlite3
+import sys
 from pathlib import Path
+from typing import Mapping
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-STATIC_DIR = Path(__file__).parent / "static"
-DB_PATH = Path(os.environ.get("JOBINTEL_DB", Path(__file__).parent.parent / "jobintel" / "data" / "jobintel.db"))
-if not DB_PATH.exists():
-    raise RuntimeError(f"jobintel.db 不存在: {DB_PATH}（可用环境变量 JOBINTEL_DB 指定）")
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+DEMO_DB_PATH = BASE_DIR / "demo" / "jobintel_demo.db"
+# 开发者机器上的真实库（旧版默认路径）；公开 clone 里不存在
+LEGACY_DB_PATH = BASE_DIR.parent / "jobintel" / "data" / "jobintel.db"
+
+
+def resolve_db_path(
+    env: Mapping[str, str] | None = None,
+    demo_path: Path | None = None,
+    legacy_path: Path | None = None,
+) -> tuple[Path, str]:
+    """按 JOBINTEL_DB → 本机真实库 → demo 库 → 报错 的顺序解析数据库路径。
+
+    返回 ``(数据库路径, 来源)``，来源取值 ``"env"`` / ``"local"`` / ``"demo"``。
+    ``demo_path`` / ``legacy_path`` 仅用于测试替换对应位置。
+    """
+    env = os.environ if env is None else env
+    demo = Path(demo_path) if demo_path is not None else DEMO_DB_PATH
+    legacy = Path(legacy_path) if legacy_path is not None else LEGACY_DB_PATH
+
+    explicit = (env.get("JOBINTEL_DB") or "").strip()
+    if explicit:
+        path = Path(explicit).expanduser()
+        if not path.exists():
+            # 显式指定却找不到：直接报错，不静默降级到 local/demo
+            raise RuntimeError(
+                "JOBINTEL_DB 指向的数据库不存在: %s\n"
+                "请检查路径，或去掉 JOBINTEL_DB 使用本机真实库/内置 demo 数据。" % path
+            )
+        return path, "env"
+
+    if legacy.exists():
+        return legacy, "local"
+
+    if demo.exists():
+        return demo, "demo"
+
+    raise RuntimeError(
+        "找不到数据库：未设置环境变量 JOBINTEL_DB，本机真实库与内置 demo 库均不存在"
+        "（检查过 %s 和 %s）。\n"
+        "  · 生成合成 demo 数据后直接启动：python3 scripts/make_demo_db.py\n"
+        "  · 或指向真实库：JOBINTEL_DB=/path/to/jobintel.db uvicorn app:app --port 8001"
+        % (legacy, demo)
+    )
+
+
+DB_PATH, DB_SOURCE = resolve_db_path()
+
+if DB_SOURCE == "local":
+    print(
+        "[jobintel-dashboard] 使用本机真实数据：%s" % DB_PATH,
+        file=sys.stderr,
+    )
+elif DB_SOURCE == "demo":
+    print(
+        "[jobintel-dashboard] 未找到本机真实库，使用合成 demo 数据：%s\n"
+        "                    真实数据请设置 JOBINTEL_DB=/path/to/jobintel.db" % DB_PATH,
+        file=sys.stderr,
+    )
 
 app = FastAPI(title="求职数据仪表盘")
 
@@ -31,6 +98,16 @@ def query(sql: str, params: tuple = ()) -> list[dict]:
         return [dict(r) for r in conn.execute(sql, params).fetchall()]
     finally:
         conn.close()
+
+
+@app.get("/api/healthz")
+def api_healthz() -> dict:
+    """健康检查：确认进程活着且数据库可读。"""
+    try:
+        rows = query("SELECT COUNT(*) c FROM applications")[0]["c"]
+    except sqlite3.Error as exc:  # pragma: no cover - 损坏库才会走到
+        raise HTTPException(status_code=503, detail="数据库不可读: %s" % exc) from exc
+    return {"ok": True, "db": str(DB_PATH), "source": DB_SOURCE, "rows": rows}
 
 
 @app.get("/api/overview")

@@ -5,3 +5,6 @@ __pycache__/
 venv/
 *.db
 data/
+
+# 例外：合成脱敏 demo 数据需要入库，保证 clone 后开箱可用
+!demo/jobintel_demo.db
