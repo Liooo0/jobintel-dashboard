@@ -11,4 +11,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -r requirements.txt httpx pytest
-      - run: pytest test_smoke.py -v
+      - name: 生成合成 demo 数据
+        run: python scripts/make_demo_db.py
+      - name: 冒烟 + demo 数据测试
+        run: pytest test_smoke.py tests/ -v

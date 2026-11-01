@@ -1,0 +1,25 @@
+# 可选：docker compose up --build 后访问 http://127.0.0.1:8001
+# 镜像内自带合成 demo 数据；真实数据请通过 JOBINTEL_DB + volume 挂载（不入镜像）。
+services:
+  dashboard:
+    build: .
+    image: jobintel-dashboard:demo
+    ports:
+      - "8001:8001"
+    environment:
+      # 指向真实库时取消注释，并把宿主机目录挂载进来：
+      # JOBINTEL_DB: /data/jobintel.db
+      TZ: Asia/Shanghai
+    # volumes:
+    #   - ~/projects/jobintel/data:/data:ro
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/api/healthz', timeout=2)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped

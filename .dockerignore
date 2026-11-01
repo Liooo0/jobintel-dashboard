@@ -1,0 +1,16 @@
+# 构建镜像时排除的文件：镜像内由 Dockerfile 现场生成 demo DB，不需要仓库里的 .db
+.git
+.gitignore
+.github
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+.DS_Store
+.venv
+venv
+env
+tests
+docs
+demo
+*.db
