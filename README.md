@@ -12,6 +12,8 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Liooo0/jobintel-dashboard/actions/workflows/ci.yml"><img src="https://github.com/Liooo0/jobintel-dashboard/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/Liooo0/jobintel-dashboard/actions/workflows/docker.yml"><img src="https://github.com/Liooo0/jobintel-dashboard/actions/workflows/docker.yml/badge.svg" alt="Docker"></a>
   <img src="https://img.shields.io/badge/Suite-Job_Intelligence-6366f1?style=flat-square" alt="Suite">
   <img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI">
   <img src="https://img.shields.io/badge/Charts-Pure_SVG_Zero--Dep-blue?style=flat-square" alt="Zero-Dep SVG">
@@ -54,7 +56,7 @@ docker compose up --build
 
 构建时会自动生成 demo 数据，容器自带 `HEALTHCHECK`（探测 `/api/healthz`）。
 
-> 说明：`Dockerfile` / `docker-compose.yml` 只做了静态检查——开发机没有 Docker，**未实际执行 build**；首次使用请以构建日志为准。
+> 说明：镜像由 CI 在每次推送时**真实 build + 容器冒烟**（起容器 → 轮询 `/api/healthz` → 断言 `source=demo`），badge 见仓库顶部 Docker 徽章。
 
 ## 界面截图
 
