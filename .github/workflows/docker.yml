@@ -1,0 +1,33 @@
+name: Docker
+
+on: [push, pull_request]
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 构建镜像
+        run: docker build -t jobintel-dashboard:ci .
+      - name: 起容器
+        run: docker run -d --name dashboard -p 8001:8001 jobintel-dashboard:ci
+      - name: 等 healthz 就绪
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8001/api/healthz > /tmp/health.json; then
+              echo "第 ${i} 次探测通过"; cat /tmp/health.json; exit 0
+            fi
+            sleep 2
+          done
+          echo "30 次探测均失败，容器日志："; docker logs dashboard; exit 1
+      - name: 断言数据源是内置 demo
+        run: |
+          python3 - <<'EOF'
+          import json, sys
+          h = json.load(open("/tmp/health.json"))
+          assert h.get("source") == "demo", f"healthz source 应为 demo，实际: {h}"
+          print("healthz source=demo ✓", h)
+          EOF
+      - name: 收尾
+        if: always()
+        run: docker rm -f dashboard || true
