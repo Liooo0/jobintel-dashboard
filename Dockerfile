@@ -1,6 +1,7 @@
 # 合成 demo 数据的求职数据仪表盘（无真实数据）。
 # 构建时生成 demo/jobintel_demo.db，容器内开箱可用。
-# 说明：本镜像仅做过静态检查，未在装有 Docker 的机器上执行 build（开发机无 docker）。
+# 说明：本镜像由 CI（.github/workflows/docker.yml）在每次推送时真实 build + 容器冒烟
+# （轮询 /api/healthz 并断言 source=demo）。
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
